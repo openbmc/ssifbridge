@@ -1,0 +1,9 @@
+Code-Review+1: Patrick Williams <patrick@stwcx.xyz>
+Ok-To-Test+1: Thang Q. Nguyen <thang@os.amperecomputing.com>
+Code-Review+2: Thang Q. Nguyen <thang@os.amperecomputing.com>
+Verified+1: Thang Q. Nguyen <thang@os.amperecomputing.com>
+Submitted-by: Thang Q. Nguyen <thang@os.amperecomputing.com>
+Submitted-at: Sat, 19 Dec 2020 02:31:43 +0000
+Reviewed-on: https://gerrit.openbmc-project.xyz/c/openbmc/ssifbridge/+/39038
+Project: openbmc/ssifbridge
+Branch: refs/heads/master
