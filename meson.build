@@ -18,6 +18,20 @@ deps = [dependency('libsystemd', version : '>=221'),
 
 ]
 
+# Configure and install systemd unit files
+systemd = dependency('systemd')
+systemd_system_unit_dir = systemd.get_pkgconfig_variable(
+    'systemdsystemunitdir',
+    define_variable: ['prefix', get_option('prefix')])
+    
+configure_file(
+    copy: true,
+    input: 'ssifbridge.service',
+    install: true,
+    install_dir: systemd_system_unit_dir,
+    output: 'ssifbridge.service'
+)
+
 executable('ssifbridged','ssifbridged.cpp',
            dependencies: deps,
            install: true)

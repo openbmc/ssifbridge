@@ -1,11 +1,16 @@
 [Unit]
-Description=SSIF Bridge Daemon
+Description=Phosphor IPMI SSIF DBus Bridge
+StartLimitBurst=3
+StartLimitIntervalSec=300
 
 [Service]
-Type=dbus
-BusName=org.openbmc.HostIpmi
-ExecStart=/usr/sbin/ssifbridged
-Restart=on-abort
+Restart=always
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=60
+ExecStart=/usr/bin/ssifbridged
+SyslogIdentifier=ssifbridged
 
 [Install]
 WantedBy=multi-user.target
+RequiredBy=
