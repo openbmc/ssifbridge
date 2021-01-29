@@ -41,7 +41,7 @@ static constexpr const char* ssifObj =
 class SsifChannel
 {
   public:
-    static constexpr size_t ssifMessageSize = 4096;
+    static constexpr size_t ssifMessageSize = 255;
     static constexpr uint8_t netFnShift = 2;
     static constexpr uint8_t lunMask = (1 << netFnShift) - 1;
 
