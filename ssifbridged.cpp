@@ -81,9 +81,10 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
     int fd = open(devName.c_str(), O_RDWR | O_NONBLOCK);
     if (fd < 0)
     {
-        log<level::ERR>("Couldn't open SSIF driver with flags O_RDWR",
-                        entry("FILENAME=%s", devName.c_str()),
-                        entry("ERROR=%s", strerror(errno)));
+        std::string msgToLog = "Couldn't open SSIF driver with flags O_RDWR."
+                " FILENAME=" + devName +
+                " ERROR=" + strerror(errno);
+        log<level::ERR>(msgToLog.c_str());
         return;
     }
     else
@@ -103,7 +104,8 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
 void SsifChannel::channelAbort(const char* msg,
                                const boost::system::error_code& ec)
 {
-    log<level::ERR>(msg, entry("ERROR=%s", ec.message().c_str()));
+    std::string msgToLog = std::string(msg) + " ERROR=" + ec.message();
+    log<level::ERR>(msgToLog.c_str());
     // bail; maybe a restart from systemd can clear the error
     io->stop();
 }
@@ -131,15 +133,17 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
 
     auto rawIter = xferBuffer.cbegin();
     auto rawEnd = rawIter + rlen;
-    uint8_t len = rawIter[0] + 1;
     uint8_t netfn = rawIter[1] >> netFnShift;
     uint8_t lun = rawIter[1] & lunMask;
     uint8_t cmd = rawIter[2];
     if (verbose)
     {
-        log<level::INFO>("Read req msg", entry("NETFN=0x%02x", netfn),
-                         entry("LUN=0x%02x", lun),
-                         entry("CMD=0x%02x", cmd));
+        std::string msgToLog = "Read ssif request message with"
+                " len=" + std::to_string(rawIter[0] + 1) +
+                " netfn=" + std::to_string(netfn) +
+                " lun=" + std::to_string(lun) +
+                " cmd=" + std::to_string(cmd);
+        log<level::INFO>(msgToLog.c_str());
     }
     // copy out payload
     std::vector<uint8_t> data(&rawIter[3], rawEnd);
@@ -163,10 +167,12 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
             const auto& [netfn, lun, cmd, cc, payload] = response;
             if (ec)
             {
-                log<level::ERR>(
-                    "ssif<->ipmid bus error:", entry("NETFN=0x%02x", netfn),
-                    entry("LUN=0x%02x", lun), entry("CMD=0x%02x", cmd),
-                    entry("ERROR=%s", ec.message().c_str()));
+                std::string msgToLog = "ssif<->ipmid bus error:"
+                        " netfn=" + std::to_string(netfn) +
+                        " lun=" + std::to_string(lun) +
+                        " cmd=" + std::to_string(cmd) +
+                        " error=" + ec.message();
+                log<level::ERR>(msgToLog.c_str());
                 // send unspecified error for a D-Bus error
                 constexpr uint8_t ccResponseNotAvailable = 0xce;
                 rsp.resize(sizeof(uint8_t) + sizeof(netfn) + sizeof(cmd) +
@@ -196,22 +202,28 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
             }
             if (verbose)
             {
-                log<level::INFO>(
-                    "Send rsp msg", entry("NETFN=0x%02x", netfn),
-                    entry("LUN=0x%02x", lun), entry("CMD=0x%02x", cmd),
-                    entry("CC=0x%02x", cc));
+                std::string msgToLog = "Send ssif respond message with"
+                        " len=" + std::to_string(payload.size() + 3) +
+                        " netfn=" + std::to_string(netfn) +
+                        " lun=" + std::to_string(lun) +
+                        " cmd=" + std::to_string(cmd) +
+                        " cc=" + std::to_string(cc);
+                log<level::INFO>(msgToLog.c_str());
             }
             boost::system::error_code ecWr;
             size_t wlen =
                 boost::asio::write(*dev, boost::asio::buffer(rsp), ecWr);
             if (ecWr || wlen != rsp.size())
             {
-                log<level::ERR>(
-                    "Failed to send rsp msg", entry("SIZE=%d", wlen),
-                    entry("EXPECT=%d", rsp.size()),
-                    entry("ERROR=%s", ecWr.message().c_str()),
-                    entry("NETFN=0x%02x", netfn), entry("LUN=0x%02x", lun),
-                    entry("CMD=0x%02x", cmd), entry("CC=0x%02x", cc));
+                std::string msgToLog = "Failed to send ssif respond message:"
+                        " size=" + std::to_string(wlen) +
+                        " expect=" + std::to_string(rsp.size()) +
+                        " error=" + ecWr.message() +
+                        " netfn=" + std::to_string(netfn) +
+                        " lun=" + std::to_string(lun) +
+                        " cmd=" + std::to_string(cmd) +
+                        " cc=" + std::to_string(cc);
+                log<level::ERR>(msgToLog.c_str());
             }
         },
         ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod,
