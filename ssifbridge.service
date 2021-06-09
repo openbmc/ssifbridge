@@ -2,6 +2,7 @@
 Description=Phosphor IPMI SSIF DBus Bridge
 StartLimitBurst=3
 StartLimitIntervalSec=300
+After=phosphor-ipmi-host.service
 
 [Service]
 Restart=always
