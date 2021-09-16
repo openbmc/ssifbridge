@@ -1,9 +1,10 @@
 project('ssifbridge', 'cpp',
+    meson_version: '>=0.57.0',
     default_options: [
         'buildtype=debugoptimized',
         'warning_level=3',
         'werror=true',
-        'cpp_std=c++17'
+        'cpp_std=c++20',
     ],
     version: '1.0',
 )
