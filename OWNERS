@@ -33,11 +33,9 @@
 
 owners:
 - chuong.tran@amperecomputing.com
-- thangqn@amperecomputing.com
+- thang@os.amperecomputing.com
 
 reviewers:
-- pvo@amperecomputing.com
-- qnguyen@amperecomputing.com
 
 matchers:
 
@@ -45,12 +43,6 @@ openbmc:
 - name: Chuong Tran
   email: chuong.tran@amperecomputing.com
   discord: chuongtranle
-- name: Phong Vo
-  email: pvo@amperecomputing.com
-  discord: NA
-- name: Quan Nguyen
-  email: qnguyen@amperecomputing.com
-  discord: NA
 - name: Thang Q Nguyen
-  email: thangqn@amperecomputing.com
+  email: thang@os.amperecomputing.com
   discord: thangqn
