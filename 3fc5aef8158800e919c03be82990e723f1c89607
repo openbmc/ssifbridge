@@ -16,6 +16,24 @@
       "message": "I don\u0027t really understand why you copied my exact commit 4 days later and merged it and have left mine sitting for 2 weeks.  What was the point of this?",
       "revId": "3fc5aef8158800e919c03be82990e723f1c89607",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c584ad32_1c3365ac",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2022-08-03T02:07:05Z",
+      "side": 1,
+      "message": "I am sorry. I was not aware of your change at https://gerrit.openbmc.org/c/openbmc/ssifbridge/+/55726",
+      "parentUuid": "e850f1ab_1e9dbd34",
+      "revId": "3fc5aef8158800e919c03be82990e723f1c89607",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
