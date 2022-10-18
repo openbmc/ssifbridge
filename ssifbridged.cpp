@@ -31,6 +31,12 @@
 
 using namespace phosphor::logging;
 
+struct ipmi_cmd {
+    uint8_t netfn;
+    uint8_t lun;
+    uint8_t cmd;
+} prev_req_cmd;
+
 static constexpr const char devBase[] = "/dev/ipmi-ssif-host";
 /* SSIF use IPMI SSIF channel */
 static constexpr const char* ssifBus =
@@ -136,6 +142,11 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     uint8_t netfn = rawIter[1] >> netFnShift;
     uint8_t lun = rawIter[1] & lunMask;
     uint8_t cmd = rawIter[2];
+
+    prev_req_cmd.netfn = netfn;
+    prev_req_cmd.lun = lun;
+    prev_req_cmd.cmd = cmd;
+
     if (verbose)
     {
         std::string msgToLog = "Read ssif request message with"
@@ -159,7 +170,8 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     static constexpr const char ipmiQueueIntf[] =
         "xyz.openbmc_project.Ipmi.Server";
     static constexpr const char ipmiQueueMethod[] = "execute";
-    bus->async_method_call(
+    static constexpr int dbusTimeout = 40000000;
+    bus->async_method_call_timed(
         [this, netfnCap{netfn}, lunCap{lun},
          cmdCap{cmd}](const boost::system::error_code& ec,
                       const IpmiDbusRspType& response) {
@@ -173,18 +185,26 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                         " cmd=" + std::to_string(cmd) +
                         " error=" + ec.message();
                 log<level::ERR>(msgToLog.c_str());
-                // send unspecified error for a D-Bus error
-                constexpr uint8_t ccResponseNotAvailable = 0xce;
                 rsp.resize(sizeof(uint8_t) + sizeof(netfn) + sizeof(cmd) +
                            sizeof(cc));
-                rsp[0] = 3;
-                rsp[1] =
-                    ((netfnCap + 1) << netFnShift) | (lunCap & lunMask);
-                rsp[2] = cmdCap;
-                rsp[3] = ccResponseNotAvailable;
+                /* if dbusTimeout, just return and do not send any response
+                 * to let host continue with other commands, response here
+                 * is potentionally make the response duplicated 
+                 * */
+                return;
             }
             else
             {
+                if(prev_req_cmd.netfn != (netfn-1) ||
+                        prev_req_cmd.lun != lun ||
+                        prev_req_cmd.cmd != cmd)
+                {
+                    /* Only send response to the last request command to void
+                     * duplicated response which makes host driver confused and
+                     * failed to create interface
+                     * */
+                    return;
+                }
                 rsp.resize(sizeof(uint8_t) + sizeof(netfn) + sizeof(cmd) +
                            sizeof(cc) + payload.size());
 
@@ -226,7 +246,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                 log<level::ERR>(msgToLog.c_str());
             }
         },
-        ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod,
+        ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod, dbusTimeout,
         netfn, lun, cmd, data, options);
 }
 
