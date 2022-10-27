@@ -29,6 +29,9 @@
 
 #include <iostream>
 
+/* Max length of ipmi ssif message included netfn and cmd field */
+#define IPMI_SSIF_PAYLOAD_MAX         254
+
 using namespace phosphor::logging;
 
 struct ipmi_cmd {
@@ -47,7 +50,9 @@ static constexpr const char* ssifObj =
 class SsifChannel
 {
   public:
-    static constexpr size_t ssifMessageSize = 255;
+    static constexpr size_t ssifMessageSize = IPMI_SSIF_PAYLOAD_MAX +
+                                              sizeof(unsigned int);
+    size_t sizeofLenField = sizeof(unsigned int);
     static constexpr uint8_t netFnShift = 2;
     static constexpr uint8_t lunMask = (1 << netFnShift) - 1;
 
@@ -139,9 +144,9 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
 
     auto rawIter = xferBuffer.cbegin();
     auto rawEnd = rawIter + rlen;
-    uint8_t netfn = rawIter[1] >> netFnShift;
-    uint8_t lun = rawIter[1] & lunMask;
-    uint8_t cmd = rawIter[2];
+    uint8_t netfn = rawIter[sizeofLenField] >> netFnShift;
+    uint8_t lun = rawIter[sizeofLenField] & lunMask;
+    uint8_t cmd = rawIter[sizeofLenField + 1];
 
     prev_req_cmd.netfn = netfn;
     prev_req_cmd.lun = lun;
@@ -149,15 +154,18 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
 
     if (verbose)
     {
+        unsigned int lenRecv;
+        unsigned int *p = (unsigned int *) rawIter;
+        lenRecv = p[0];
         std::string msgToLog = "Read ssif request message with"
-                " len=" + std::to_string(rawIter[0] + 1) +
+                " len=" + std::to_string(lenRecv) +
                 " netfn=" + std::to_string(netfn) +
                 " lun=" + std::to_string(lun) +
                 " cmd=" + std::to_string(cmd);
         log<level::INFO>(msgToLog.c_str());
     }
     // copy out payload
-    std::vector<uint8_t> data(&rawIter[3], rawEnd);
+    std::vector<uint8_t> data(rawIter + sizeofLenField + 2, rawEnd);
     // non-session bridges still need to pass an empty options map
     std::map<std::string, std::variant<int>> options;
     // the response is a tuple because dbus can only return a single value
@@ -185,7 +193,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                         " cmd=" + std::to_string(cmd) +
                         " error=" + ec.message();
                 log<level::ERR>(msgToLog.c_str());
-                rsp.resize(sizeof(uint8_t) + sizeof(netfn) + sizeof(cmd) +
+                rsp.resize(sizeofLenField + sizeof(netfn) + sizeof(cmd) +
                            sizeof(cc));
                 /* if dbusTimeout, just return and do not send any response
                  * to let host continue with other commands, response here
@@ -205,19 +213,20 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                      * */
                     return;
                 }
-                rsp.resize(sizeof(uint8_t) + sizeof(netfn) + sizeof(cmd) +
+                rsp.resize(sizeofLenField + sizeof(netfn) + sizeof(cmd) +
                            sizeof(cc) + payload.size());
 
                 // write the response
                 auto rspIter = rsp.begin();
-                rspIter[0] = payload.size() + 3;
-                rspIter[1] = (netfn << netFnShift) | (lun & lunMask);
-                rspIter[2] = cmd;
-                rspIter[3] = cc;
+                unsigned int *p = (unsigned int *) &rspIter[0];
+                *p = payload.size() + 3;
+                rspIter[sizeofLenField] = (netfn << netFnShift) | (lun & lunMask);
+                rspIter[sizeofLenField + 1] = cmd;
+                rspIter[sizeofLenField + 2] = cc;
                 if (payload.size())
                 {
                     std::copy(payload.cbegin(), payload.cend(),
-                              &rspIter[4]);
+                            rspIter + sizeofLenField + 3);
                 }
             }
             if (verbose)
