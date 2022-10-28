@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "0e06dee7_badcd062",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2022-10-28T04:39:07Z",
+      "side": 1,
+      "message": "Please limit number of characters in a row to 80.",
+      "revId": "f97067639862f90d783bffc68c6390c9c6f82b19",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "16cb2684_64767759",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2022-10-28T04:39:07Z",
+      "side": 1,
+      "message": "Remove this statement. No such ampere_fault_monitor available in this repo.",
+      "revId": "f97067639862f90d783bffc68c6390c9c6f82b19",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9811ee92_77f23066",
+        "filename": "ssifbridged.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 198,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2022-10-28T04:39:07Z",
+      "side": 1,
+      "message": "remove last whitespace",
+      "revId": "f97067639862f90d783bffc68c6390c9c6f82b19",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    }
+  ]
+}
