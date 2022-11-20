@@ -58,7 +58,8 @@ class SsifChannel
 
     SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                    std::shared_ptr<sdbusplus::asio::connection>& bus,
-                   const std::string& channel, bool verbose);
+                   const std::string& channel, bool verbose,
+                   int numberOfReqNotRsp);
     bool initOK() const
     {
         return !!dev;
@@ -74,13 +75,18 @@ class SsifChannel
     std::shared_ptr<sdbusplus::asio::object_server> server;
     std::unique_ptr<boost::asio::posix::stream_descriptor> dev = nullptr;
     bool verbose;
+    /* This variable is always 0 when a request is responsed properly,
+     * any value larger than 0 meaning there is/are request(s) which
+     * not processed properly
+     * */
+    int numberOfReqNotRsp;
 };
 
 SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                          std::shared_ptr<sdbusplus::asio::connection>& bus,
-                         const std::string& device, bool verbose) :
+                         const std::string& device, bool verbose, int numberOfReqNotRsp) :
     io(io),
-    bus(bus), verbose(verbose)
+    bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp)
 {
     std::string devName = devBase;
     if (!device.empty())
@@ -148,9 +154,13 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     uint8_t lun = rawIter[sizeofLenField] & lunMask;
     uint8_t cmd = rawIter[sizeofLenField + 1];
 
+    /* keep track of previous request */
     prev_req_cmd.netfn = netfn;
     prev_req_cmd.lun = lun;
     prev_req_cmd.cmd = cmd;
+
+    /* there is a request coming */
+    numberOfReqNotRsp++;
 
     if (verbose)
     {
@@ -185,6 +195,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                       const IpmiDbusRspType& response) {
             std::vector<uint8_t> rsp;
             const auto& [netfn, lun, cmd, cc, payload] = response;
+            numberOfReqNotRsp--;
             if (ec)
             {
                 std::string msgToLog = "ssif<->ipmid bus error:"
@@ -197,19 +208,27 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                            sizeof(cc));
                 /* if dbusTimeout, just return and do not send any response
                  * to let host continue with other commands, response here
-                 * is potentionally make the response duplicated 
+                 * is potentially make the response duplicated
                  * */
                 return;
             }
             else
             {
-                if(prev_req_cmd.netfn != (netfn-1) ||
+                if ((prev_req_cmd.netfn != (netfn-1) ||
                         prev_req_cmd.lun != lun ||
-                        prev_req_cmd.cmd != cmd)
+                        prev_req_cmd.cmd != cmd) ||
+                        ((prev_req_cmd.netfn == (netfn-1) ||
+                        prev_req_cmd.lun == lun ||
+                        prev_req_cmd.cmd == cmd) &&
+                        numberOfReqNotRsp > 0))
                 {
                     /* Only send response to the last request command to void
                      * duplicated response which makes host driver confused and
                      * failed to create interface
+                     *
+                     * Drop responses which are (1) different from the request
+                     * (2) parameters are the same as request but handshake flow
+                     * are in dupplicate request state
                      * */
                     return;
                 }
@@ -267,6 +286,7 @@ int main(int argc, char* argv[])
     app.add_option("-d,--device", device,
                    "use <DEVICE> file. Default is /dev/ipmi-ssif-host");
     bool verbose = false;
+    int numberOfReqNotRsp = 0;
     app.add_option("-v,--verbose", verbose, "print more verbose output");
     CLI11_PARSE(app, argc, argv);
 
@@ -277,7 +297,7 @@ int main(int argc, char* argv[])
     auto bus = std::make_shared<sdbusplus::asio::connection>(*io, dbus);
     bus->request_name(ssifBus);
     // Create the SSIF channel, listening on D-Bus and on the SSIF device
-    SsifChannel ssifchannel(io, bus, device, verbose);
+    SsifChannel ssifchannel(io, bus, device, verbose, numberOfReqNotRsp);
     if (!ssifchannel.initOK())
     {
         return EXIT_FAILURE;
