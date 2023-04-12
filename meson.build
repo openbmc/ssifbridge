@@ -1,5 +1,5 @@
 project('ssifbridge', 'cpp',
-    meson_version: '>=0.57.0',
+    meson_version: '>=0.58.0',
     default_options: [
         'buildtype=debugoptimized',
         'warning_level=3',
@@ -21,7 +21,7 @@ deps = [dependency('libsystemd', version : '>=221'),
 
 # Configure and install systemd unit files
 systemd = dependency('systemd')
-systemd_system_unit_dir = systemd.get_pkgconfig_variable(
+systemd_system_unit_dir = systemd.get_variable(
     'systemdsystemunitdir',
     define_variable: ['prefix', get_option('prefix')])
 
