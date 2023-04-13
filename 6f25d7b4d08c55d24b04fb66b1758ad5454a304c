@@ -1,0 +1,7 @@
+Code-Review+2: Thang Q. Nguyen <thang@os.amperecomputing.com>
+Verified+1: OpenBMC CI <openbmcbump-ci@yahoo.com>
+Submitted-by: Thang Q. Nguyen <thang@os.amperecomputing.com>
+Submitted-at: Thu, 13 Apr 2023 01:29:32 +0000
+Reviewed-on: https://gerrit.openbmc.org/c/openbmc/ssifbridge/+/62382
+Project: openbmc/ssifbridge
+Branch: refs/heads/master
