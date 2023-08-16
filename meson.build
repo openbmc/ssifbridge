@@ -25,12 +25,11 @@ systemd_system_unit_dir = systemd.get_variable(
     'systemdsystemunitdir',
     pkgconfig_define: ['prefix', get_option('prefix')])
 
-configure_file(
-    copy: true,
-    input: 'ssifbridge.service',
+fs = import('fs')
+fs.copyfile(
+    'ssifbridge.service',
     install: true,
-    install_dir: systemd_system_unit_dir,
-    output: 'ssifbridge.service'
+    install_dir: systemd_system_unit_dir
 )
 
 executable('ssifbridged','ssifbridged.cpp',
