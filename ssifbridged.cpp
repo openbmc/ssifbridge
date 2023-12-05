@@ -90,7 +90,7 @@ class SsifChannel
     int numberOfReqNotRsp;
 };
 
-std::unique_ptr<phosphor::Timer> rspTimer __attribute__((init_priority(101)));
+std::unique_ptr<sdbusplus::Timer> rspTimer __attribute__((init_priority(101)));
 std::unique_ptr<SsifChannel> ssifchannel = nullptr;
 
 SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
@@ -200,7 +200,7 @@ void initTimer()
 {
     if (!rspTimer)
     {
-        rspTimer = std::make_unique<phosphor::Timer>(rspTimerHandler);
+        rspTimer = std::make_unique<sdbusplus::Timer>(rspTimerHandler);
     }
 }
 
@@ -377,10 +377,10 @@ int main(int argc, char* argv[])
     sd_bus* dbus;
     sd_bus_default_system(&dbus);
 
-    /* This might be a phosphor::Timer bug, without timer t2, rspTimer
+    /* This might be a sdbusplus::Timer bug, without timer t2, rspTimer
      * will not work
      */
-    phosphor::Timer t2([]() { ; });
+    sdbusplus::Timer t2([]() { ; });
     t2.start(std::chrono::microseconds(500000), true);
     auto bus = std::make_shared<sdbusplus::asio::connection>(*io, dbus);
     bus->request_name(ssifBus);
