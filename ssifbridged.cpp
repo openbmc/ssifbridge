@@ -22,11 +22,14 @@
 
 #include <CLI/CLI.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/asio.hpp>
+#include <boost/asio/completion_condition.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/read.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/write.hpp>
 #include <phosphor-logging/log.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
-#include <sdbusplus/asio/sd_event.hpp>
 #include <sdbusplus/timer.hpp>
 
 #include <iostream>
@@ -90,7 +93,7 @@ class SsifChannel
     int numberOfReqNotRsp;
 };
 
-std::unique_ptr<sdbusplus::Timer> rspTimer __attribute__((init_priority(101)));
+std::unique_ptr<boost::asio::steady_timer> rspTimer;
 std::unique_ptr<SsifChannel> ssifchannel = nullptr;
 
 SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
@@ -152,8 +155,12 @@ int SsifChannel::showNumOfReqNotRsp()
     return numberOfReqNotRsp;
 }
 
-void rspTimerHandler()
+void rspTimerHandler(const boost::system::error_code& ec)
 {
+    if (ec == boost::asio::error::operation_aborted)
+    {
+        return;
+    }
     std::vector<uint8_t> rsp;
     constexpr uint8_t ccResponseNotAvailable = 0xce;
 
@@ -196,11 +203,11 @@ void rspTimerHandler()
     }
 }
 
-void initTimer()
+void initTimer(boost::asio::io_context& io)
 {
     if (!rspTimer)
     {
-        rspTimer = std::make_unique<sdbusplus::Timer>(rspTimerHandler);
+        rspTimer = std::make_unique<boost::asio::steady_timer>(io);
     }
 }
 
@@ -228,7 +235,8 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     /* there is a request coming */
     numberOfReqNotRsp++;
     /* start response timer */
-    rspTimer->start(std::chrono::microseconds(hostReqTimeout), false);
+    rspTimer->expires_after(std::chrono::microseconds(hostReqTimeout));
+    rspTimer->async_wait(rspTimerHandler);
 
     if (verbose)
     {
@@ -355,7 +363,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                 " cc=" + std::to_string(cc);
             log<level::ERR>(msgToLog.c_str());
         }
-        rspTimer->stop();
+        rspTimer->cancel();
     },
         ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod,
         dbusTimeout, netfn, lun, cmd, data, options);
@@ -372,17 +380,9 @@ int main(int argc, char* argv[])
     app.add_option("-v,--verbose", verbose, "print more verbose output");
     CLI11_PARSE(app, argc, argv);
 
-    // Connect to system bus
     auto io = std::make_shared<boost::asio::io_context>();
-    sd_bus* dbus;
-    sd_bus_default_system(&dbus);
 
-    /* This might be a sdbusplus::Timer bug, without timer t2, rspTimer
-     * will not work
-     */
-    sdbusplus::Timer t2([]() { ; });
-    t2.start(std::chrono::microseconds(500000), true);
-    auto bus = std::make_shared<sdbusplus::asio::connection>(*io, dbus);
+    auto bus = std::make_shared<sdbusplus::asio::connection>(*io);
     bus->request_name(ssifBus);
     // Create the SSIF channel, listening on D-Bus and on the SSIF device
     ssifchannel = make_unique<SsifChannel>(io, bus, device, verbose,
@@ -391,8 +391,7 @@ int main(int argc, char* argv[])
     {
         return EXIT_FAILURE;
     }
-    initTimer();
-    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
+    initTimer(*io);
     io->run();
 
     return 0;
