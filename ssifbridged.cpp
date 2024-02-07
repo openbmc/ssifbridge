@@ -392,7 +392,6 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     initTimer();
-    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
     io->run();
 
     return 0;
