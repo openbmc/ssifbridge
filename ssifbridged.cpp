@@ -26,7 +26,6 @@
 #include <phosphor-logging/log.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
-#include <sdbusplus/asio/sd_event.hpp>
 #include <sdbusplus/timer.hpp>
 
 #include <iostream>
@@ -392,7 +391,6 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     initTimer();
-    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
     io->run();
 
     return 0;
