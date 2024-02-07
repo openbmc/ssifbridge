@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6b32dcc6_a4b2bfdb",
+        "filename": "ssifbridged.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 93,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2024-02-07T04:44:29Z",
+      "side": 0,
+      "message": "Are you sure we don\u0027t still need this?  Though, I really dislike these kinds of attributes, I suspect someone once ran into an initialization order between globals?",
+      "range": {
+        "startLine": 93,
+        "startChar": 43,
+        "endLine": 93,
+        "endChar": 79
+      },
+      "revId": "41c9b2b8ee82699ee0b217f8dd4399d6310d3bd2",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    }
+  ]
+}
