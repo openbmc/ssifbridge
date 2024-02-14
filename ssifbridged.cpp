@@ -77,6 +77,11 @@ class SsifChannel
     }
     void channelAbort(const char* msg, const boost::system::error_code& ec);
     void async_read();
+    using IpmiDbusRspType =
+        std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
+
+    void afterMethodCall(const boost::system::error_code& ec,
+                         const IpmiDbusRspType& response);
     void processMessage(const boost::system::error_code& ecRd, size_t rlen);
     int showNumOfReqNotRsp();
     boost::asio::posix::stream_descriptor dev;
@@ -102,8 +107,9 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                          std::shared_ptr<sdbusplus::asio::connection>& bus,
                          const std::string& device, bool verbose,
                          int numberOfReqNotRsp) :
-    dev(*io), io(io),
-    bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp), rspTimer(*io)
+    dev(*io),
+    io(io), bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp),
+    rspTimer(*io)
 {
     std::string devName = devBase;
     if (!device.empty())
@@ -188,8 +194,8 @@ void rspTimerHandler(const boost::system::error_code& ec)
 
     boost::system::error_code ecWr;
 
-    size_t wlen = boost::asio::write(ssifchannel->dev,
-                                     boost::asio::buffer(rsp), ecWr);
+    size_t wlen = boost::asio::write(ssifchannel->dev, boost::asio::buffer(rsp),
+                                     ecWr);
     if (ecWr || wlen != rsp.size())
     {
         msgToLog =
@@ -203,6 +209,101 @@ void rspTimerHandler(const boost::system::error_code& ec)
             " cc=" + std::to_string(ccResponseNotAvailable);
         log<level::ERR>(msgToLog.c_str());
     }
+}
+
+void SsifChannel::afterMethodCall(const boost::system::error_code& ec,
+                                  const IpmiDbusRspType& response)
+{
+    std::vector<uint8_t> rsp;
+    const auto& [netfn, lun, cmd, cc, payload] = response;
+    numberOfReqNotRsp--;
+    if (ec)
+    {
+        std::string msgToLog =
+            "ssif<->ipmid bus error:"
+            " netfn=" +
+            std::to_string(netfn) + " lun=" + std::to_string(lun) +
+            " cmd=" + std::to_string(cmd) + " error=" + ec.message();
+        log<level::ERR>(msgToLog.c_str());
+        rsp.resize(sizeofLenField + sizeof(netfn) + sizeof(cmd) + sizeof(cc));
+        /* if dbusTimeout, just return and do not send any response
+         * to let host continue with other commands, response here
+         * is potentially make the response duplicated
+         * */
+        return;
+    }
+    else
+    {
+        if ((prev_req_cmd.netfn != (netfn - 1) || prev_req_cmd.lun != lun ||
+             prev_req_cmd.cmd != cmd) ||
+            ((prev_req_cmd.netfn == (netfn - 1) && prev_req_cmd.lun == lun &&
+              prev_req_cmd.cmd == cmd) &&
+             numberOfReqNotRsp != 0))
+        {
+            /* Only send response to the last request command to void
+             * duplicated response which makes host driver confused and
+             * failed to create interface
+             *
+             * Drop responses which are (1) different from the request
+             * (2) parameters are the same as request but handshake flow
+             * are in dupplicate request state
+             * */
+            if (verbose)
+            {
+                std::string msgToLog =
+                    "Drop ssif respond message with"
+                    " len=" +
+                    std::to_string(payload.size() + 3) +
+                    " netfn=" + std::to_string(netfn) +
+                    " lun=" + std::to_string(lun) +
+                    " cmd=" + std::to_string(cmd) +
+                    " cc=" + std::to_string(cc) +
+                    " numberOfReqNotRsp=" + std::to_string(numberOfReqNotRsp);
+                log<level::INFO>(msgToLog.c_str());
+            }
+            return;
+        }
+        rsp.resize(sizeofLenField + sizeof(netfn) + sizeof(cmd) + sizeof(cc) +
+                   payload.size());
+
+        // write the response
+        auto rspIter = rsp.begin();
+        unsigned int* p = (unsigned int*)&rspIter[0];
+        *p = payload.size() + 3;
+        rspIter[sizeofLenField] = (netfn << netFnShift) | (lun & lunMask);
+        rspIter[sizeofLenField + 1] = cmd;
+        rspIter[sizeofLenField + 2] = cc;
+        if (payload.size())
+        {
+            std::copy(payload.cbegin(), payload.cend(),
+                      rspIter + sizeofLenField + 3);
+        }
+    }
+    if (verbose)
+    {
+        std::string msgToLog =
+            "Send ssif respond message with"
+            " len=" +
+            std::to_string(payload.size() + 3) +
+            " netfn=" + std::to_string(netfn) + " lun=" + std::to_string(lun) +
+            " cmd=" + std::to_string(cmd) + " cc=" + std::to_string(cc) +
+            " numberOfReqNotRsp=" + std::to_string(numberOfReqNotRsp);
+        log<level::INFO>(msgToLog.c_str());
+    }
+    boost::system::error_code ecWr;
+    size_t wlen = boost::asio::write(dev, boost::asio::buffer(rsp), ecWr);
+    if (ecWr || wlen != rsp.size())
+    {
+        std::string msgToLog =
+            "Failed to send ssif respond message:"
+            " size=" +
+            std::to_string(wlen) + " expect=" + std::to_string(rsp.size()) +
+            " error=" + ecWr.message() + " netfn=" + std::to_string(netfn) +
+            " lun=" + std::to_string(lun) + " cmd=" + std::to_string(cmd) +
+            " cc=" + std::to_string(cc);
+        log<level::ERR>(msgToLog.c_str());
+    }
+    rspTimer.cancel();
 }
 
 void SsifChannel::processMessage(const boost::system::error_code& ecRd,
@@ -249,9 +350,6 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     std::vector<uint8_t> data(rawIter + sizeofLenField + 2, rawEnd);
     // non-session bridges still need to pass an empty options map
     std::map<std::string, std::variant<int>> options;
-    // the response is a tuple because dbus can only return a single value
-    using IpmiDbusRspType =
-        std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
     static constexpr const char ipmiQueueService[] =
         "xyz.openbmc_project.Ipmi.Host";
     static constexpr const char ipmiQueuePath[] = "/xyz/openbmc_project/Ipmi";
@@ -263,101 +361,9 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
      */
     static constexpr unsigned int dbusTimeout = 60000000;
     bus->async_method_call_timed(
-        [this, netfnCap{netfn}, lunCap{lun},
-         cmdCap{cmd}](const boost::system::error_code& ec,
-                      const IpmiDbusRspType& response) {
-        std::vector<uint8_t> rsp;
-        const auto& [netfn, lun, cmd, cc, payload] = response;
-        numberOfReqNotRsp--;
-        if (ec)
-        {
-            std::string msgToLog =
-                "ssif<->ipmid bus error:"
-                " netfn=" +
-                std::to_string(netfn) + " lun=" + std::to_string(lun) +
-                " cmd=" + std::to_string(cmd) + " error=" + ec.message();
-            log<level::ERR>(msgToLog.c_str());
-            rsp.resize(sizeofLenField + sizeof(netfn) + sizeof(cmd) +
-                       sizeof(cc));
-            /* if dbusTimeout, just return and do not send any response
-             * to let host continue with other commands, response here
-             * is potentially make the response duplicated
-             * */
-            return;
-        }
-        else
-        {
-            if ((prev_req_cmd.netfn != (netfn - 1) || prev_req_cmd.lun != lun ||
-                 prev_req_cmd.cmd != cmd) ||
-                ((prev_req_cmd.netfn == (netfn - 1) &&
-                  prev_req_cmd.lun == lun && prev_req_cmd.cmd == cmd) &&
-                 numberOfReqNotRsp != 0))
-            {
-                /* Only send response to the last request command to void
-                 * duplicated response which makes host driver confused and
-                 * failed to create interface
-                 *
-                 * Drop responses which are (1) different from the request
-                 * (2) parameters are the same as request but handshake flow
-                 * are in dupplicate request state
-                 * */
-                if (verbose)
-                {
-                    std::string msgToLog = "Drop ssif respond message with"
-                                           " len=" +
-                                           std::to_string(payload.size() + 3) +
-                                           " netfn=" + std::to_string(netfn) +
-                                           " lun=" + std::to_string(lun) +
-                                           " cmd=" + std::to_string(cmd) +
-                                           " cc=" + std::to_string(cc) +
-                                           " numberOfReqNotRsp=" +
-                                           std::to_string(numberOfReqNotRsp);
-                    log<level::INFO>(msgToLog.c_str());
-                }
-                return;
-            }
-            rsp.resize(sizeofLenField + sizeof(netfn) + sizeof(cmd) +
-                       sizeof(cc) + payload.size());
-
-            // write the response
-            auto rspIter = rsp.begin();
-            unsigned int* p = (unsigned int*)&rspIter[0];
-            *p = payload.size() + 3;
-            rspIter[sizeofLenField] = (netfn << netFnShift) | (lun & lunMask);
-            rspIter[sizeofLenField + 1] = cmd;
-            rspIter[sizeofLenField + 2] = cc;
-            if (payload.size())
-            {
-                std::copy(payload.cbegin(), payload.cend(),
-                          rspIter + sizeofLenField + 3);
-            }
-        }
-        if (verbose)
-        {
-            std::string msgToLog =
-                "Send ssif respond message with"
-                " len=" +
-                std::to_string(payload.size() + 3) +
-                " netfn=" + std::to_string(netfn) +
-                " lun=" + std::to_string(lun) + " cmd=" + std::to_string(cmd) +
-                " cc=" + std::to_string(cc) +
-                " numberOfReqNotRsp=" + std::to_string(numberOfReqNotRsp);
-            log<level::INFO>(msgToLog.c_str());
-        }
-        boost::system::error_code ecWr;
-        size_t wlen = boost::asio::write(dev, boost::asio::buffer(rsp), ecWr);
-        if (ecWr || wlen != rsp.size())
-        {
-            std::string msgToLog =
-                "Failed to send ssif respond message:"
-                " size=" +
-                std::to_string(wlen) + " expect=" + std::to_string(rsp.size()) +
-                " error=" + ecWr.message() + " netfn=" + std::to_string(netfn) +
-                " lun=" + std::to_string(lun) + " cmd=" + std::to_string(cmd) +
-                " cc=" + std::to_string(cc);
-            log<level::ERR>(msgToLog.c_str());
-        }
-        rspTimer.cancel();
+        [this](const boost::system::error_code& ec,
+               const IpmiDbusRspType& response) {
+        afterMethodCall(ec, response);
     },
         ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod,
         dbusTimeout, netfn, lun, cmd, data, options);
