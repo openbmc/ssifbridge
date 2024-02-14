@@ -73,13 +73,13 @@ class SsifChannel
                 int numberOfReqNotRsp);
     bool initOK() const
     {
-        return !!dev;
+        return dev.is_open();
     }
     void channelAbort(const char* msg, const boost::system::error_code& ec);
     void async_read();
     void processMessage(const boost::system::error_code& ecRd, size_t rlen);
     int showNumOfReqNotRsp();
-    std::unique_ptr<boost::asio::posix::stream_descriptor> dev = nullptr;
+    boost::asio::posix::stream_descriptor dev;
 
   protected:
     std::array<uint8_t, ssifMessageSize> xferBuffer;
@@ -102,7 +102,7 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                          std::shared_ptr<sdbusplus::asio::connection>& bus,
                          const std::string& device, bool verbose,
                          int numberOfReqNotRsp) :
-    io(io),
+    dev(*io), io(io),
     bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp), rspTimer(*io)
 {
     std::string devName = devBase;
@@ -123,7 +123,7 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
     }
     else
     {
-        dev = std::make_unique<boost::asio::posix::stream_descriptor>(*io, fd);
+        dev.assign(fd);
     }
 
     async_read();
@@ -145,7 +145,7 @@ void SsifChannel::channelAbort(const char* msg,
 
 void SsifChannel::async_read()
 {
-    boost::asio::async_read(*dev,
+    boost::asio::async_read(dev,
                             boost::asio::buffer(xferBuffer, xferBuffer.size()),
                             boost::asio::transfer_at_least(2),
                             [this](const boost::system::error_code& ec,
@@ -188,7 +188,7 @@ void rspTimerHandler(const boost::system::error_code& ec)
 
     boost::system::error_code ecWr;
 
-    size_t wlen = boost::asio::write(*(ssifchannel->dev),
+    size_t wlen = boost::asio::write(ssifchannel->dev,
                                      boost::asio::buffer(rsp), ecWr);
     if (ecWr || wlen != rsp.size())
     {
@@ -345,7 +345,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
             log<level::INFO>(msgToLog.c_str());
         }
         boost::system::error_code ecWr;
-        size_t wlen = boost::asio::write(*dev, boost::asio::buffer(rsp), ecWr);
+        size_t wlen = boost::asio::write(dev, boost::asio::buffer(rsp), ecWr);
         if (ecWr || wlen != rsp.size())
         {
             std::string msgToLog =
