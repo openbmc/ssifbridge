@@ -9,7 +9,14 @@ project('ssifbridge', 'cpp',
     version: '1.0',
 )
 
-add_project_arguments('-Wno-psabi', language: 'cpp')
+add_project_arguments(
+    [
+	'-Wno-psabi',
+	'-DBOOST_ASIO_DISABLE_THREADS',
+	'-DBOOST_ASIO_NO_DEPRECATED',
+    ],
+    language: 'cpp'
+)
 
 deps = [dependency('libsystemd', version : '>=221'),
         dependency('systemd'),
