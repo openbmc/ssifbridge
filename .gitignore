@@ -1,0 +1,7 @@
+/build*
+
+### Meson ###
+# subproject directories
+/subprojects/*
+!/subprojects/*.wrap
+!/subprojects/packagefiles

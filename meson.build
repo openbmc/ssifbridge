@@ -18,13 +18,26 @@ add_project_arguments(
     language: 'cpp'
 )
 
-deps = [dependency('libsystemd', version : '>=221'),
-        dependency('systemd'),
-        dependency('phosphor-logging'),
-        dependency('sdbusplus'),
-        dependency('threads')
+sdbusplus = dependency('sdbusplus')
+cli11 = dependency('CLI11')
+phosphor_logging = dependency('phosphor-logging')
 
-]
+boost = dependency(
+  'boost',
+  version : '>=1.83.0',
+  required : false,
+)
+
+if not boost.found()
+  cmake = import('cmake')
+  opt = cmake.subproject_options()
+  opt.add_cmake_defines({
+    'BOOST_INCLUDE_LIBRARIES': 'asio'
+  })
+  boost_cmake = cmake.subproject('boost', required: true, options: opt)
+  boost_asio = boost_cmake.dependency('boost_asio').as_system()
+  boost = [boost_asio]
+endif
 
 # Configure and install systemd unit files
 systemd = dependency('systemd')
@@ -40,5 +53,10 @@ fs.copyfile(
 )
 
 executable('ssifbridged','ssifbridged.cpp',
-           dependencies: deps,
+           dependencies: [
+		boost,
+		sdbusplus,
+		cli11,
+		phosphor_logging,
+	   ],
            install: true)
