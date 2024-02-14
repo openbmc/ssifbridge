@@ -37,7 +37,8 @@
 /* Max length of ipmi ssif message included netfn and cmd field */
 #define IPMI_SSIF_PAYLOAD_MAX 254
 
-using namespace phosphor::logging;
+using phosphor::logging::level;
+using phosphor::logging::log;
 
 struct ipmi_cmd
 {
