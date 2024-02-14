@@ -91,9 +91,10 @@ class SsifChannel
      * not processed properly
      * */
     int numberOfReqNotRsp;
+
+    boost::asio::steady_timer rspTimer;
 };
 
-std::unique_ptr<boost::asio::steady_timer> rspTimer;
 std::unique_ptr<SsifChannel> ssifchannel = nullptr;
 
 SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
@@ -101,7 +102,8 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                          const std::string& device, bool verbose,
                          int numberOfReqNotRsp) :
     io(io),
-    bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp)
+    bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp),
+    rspTimer(*io)
 {
     std::string devName = devBase;
     if (!device.empty())
@@ -203,14 +205,6 @@ void rspTimerHandler(const boost::system::error_code& ec)
     }
 }
 
-void initTimer(boost::asio::io_context& io)
-{
-    if (!rspTimer)
-    {
-        rspTimer = std::make_unique<boost::asio::steady_timer>(io);
-    }
-}
-
 void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                                  size_t rlen)
 {
@@ -235,8 +229,8 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     /* there is a request coming */
     numberOfReqNotRsp++;
     /* start response timer */
-    rspTimer->expires_after(std::chrono::microseconds(hostReqTimeout));
-    rspTimer->async_wait(rspTimerHandler);
+    rspTimer.expires_after(std::chrono::microseconds(hostReqTimeout));
+    rspTimer.async_wait(rspTimerHandler);
 
     if (verbose)
     {
@@ -363,7 +357,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
                 " cc=" + std::to_string(cc);
             log<level::ERR>(msgToLog.c_str());
         }
-        rspTimer->cancel();
+        rspTimer.cancel();
     },
         ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod,
         dbusTimeout, netfn, lun, cmd, data, options);
@@ -391,7 +385,6 @@ int main(int argc, char* argv[])
     {
         return EXIT_FAILURE;
     }
-    initTimer(*io);
     io->run();
 
     return 0;
