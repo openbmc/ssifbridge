@@ -40,19 +40,18 @@
 using phosphor::logging::level;
 using phosphor::logging::log;
 
-struct ipmi_cmd
+struct IpmiCmd
 {
     uint8_t netfn;
     uint8_t lun;
     uint8_t cmd;
-} prev_req_cmd;
+} prevReqCmd;
 
 static constexpr const char devBase[] = "/dev/ipmi-ssif-host";
 /* SSIF use IPMI SSIF channel */
 static constexpr const char* ssifBus =
     "xyz.openbmc_project.Ipmi.Channel.ipmi_ssif";
-static constexpr const char* ssifObj =
-    "/xyz/openbmc_project/Ipmi/Channel/ipmi_ssif";
+
 /* The timer of driver is set to 15 seconds, need to send
  * response before timeout occurs
  */
@@ -69,25 +68,24 @@ class SsifChannel
 
     SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                 std::shared_ptr<sdbusplus::asio::connection>& bus,
-                const std::string& channel, bool verbose,
-                int numberOfReqNotRsp);
+                const std::string& device, bool verbose, int numberOfReqNotRsp);
     bool initOK() const
     {
         return dev.is_open();
     }
     void channelAbort(const char* msg, const boost::system::error_code& ec);
-    void async_read();
+    void asyncRead();
     using IpmiDbusRspType =
         std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
 
     void afterMethodCall(const boost::system::error_code& ec,
                          const IpmiDbusRspType& response);
     void processMessage(const boost::system::error_code& ecRd, size_t rlen);
-    int showNumOfReqNotRsp();
+    int showNumOfReqNotRsp() const;
     boost::asio::posix::stream_descriptor dev;
 
   protected:
-    std::array<uint8_t, ssifMessageSize> xferBuffer;
+    std::array<uint8_t, ssifMessageSize> xferBuffer{};
     std::shared_ptr<boost::asio::io_context> io;
     std::shared_ptr<sdbusplus::asio::connection> bus;
     std::shared_ptr<sdbusplus::asio::object_server> server;
@@ -127,16 +125,15 @@ SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
         log<level::ERR>(msgToLog.c_str());
         return;
     }
-    else
-    {
-        dev.assign(fd);
-    }
 
-    async_read();
+    dev.assign(fd);
+
+    asyncRead();
     // register interfaces...
     server = std::make_shared<sdbusplus::asio::object_server>(bus);
     std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
-        server->add_interface(ssifObj, ssifBus);
+        server->add_interface("/xyz/openbmc_project/Ipmi/Channel/ipmi_ssif",
+                              ssifBus);
     iface->initialize();
 }
 
@@ -149,7 +146,7 @@ void SsifChannel::channelAbort(const char* msg,
     io->stop();
 }
 
-void SsifChannel::async_read()
+void SsifChannel::asyncRead()
 {
     boost::asio::async_read(dev,
                             boost::asio::buffer(xferBuffer, xferBuffer.size()),
@@ -158,7 +155,7 @@ void SsifChannel::async_read()
                                    size_t rlen) { processMessage(ec, rlen); });
 }
 
-int SsifChannel::showNumOfReqNotRsp()
+int SsifChannel::showNumOfReqNotRsp() const
 {
     return numberOfReqNotRsp;
 }
@@ -172,24 +169,24 @@ void rspTimerHandler(const boost::system::error_code& ec)
     std::vector<uint8_t> rsp;
     constexpr uint8_t ccResponseNotAvailable = 0xce;
 
-    rsp.resize(ssifchannel->sizeofLenField + sizeof(prev_req_cmd.cmd) +
-               sizeof(prev_req_cmd.netfn) + sizeof(ccResponseNotAvailable));
+    rsp.resize(ssifchannel->sizeofLenField + sizeof(prevReqCmd.cmd) +
+               sizeof(prevReqCmd.netfn) + sizeof(ccResponseNotAvailable));
     std::string msgToLog = "timeout, send response to keep host alive"
                            " netfn=" +
-                           std::to_string(prev_req_cmd.netfn) +
-                           " lun=" + std::to_string(prev_req_cmd.lun) +
-                           " cmd=" + std::to_string(prev_req_cmd.cmd) +
+                           std::to_string(prevReqCmd.netfn) +
+                           " lun=" + std::to_string(prevReqCmd.lun) +
+                           " cmd=" + std::to_string(prevReqCmd.cmd) +
                            " cc=" + std::to_string(ccResponseNotAvailable) +
                            " numberOfReqNotRsp=" +
                            std::to_string(ssifchannel->showNumOfReqNotRsp());
     log<level::INFO>(msgToLog.c_str());
 
-    unsigned int* t = (unsigned int*)&rsp[0];
+    unsigned int* t = (unsigned int*)rsp.data();
     *t = 3;
-    rsp[ssifchannel->sizeofLenField] =
-        ((prev_req_cmd.netfn + 1) << ssifchannel->netFnShift) |
-        (prev_req_cmd.lun & ssifchannel->lunMask);
-    rsp[ssifchannel->sizeofLenField + 1] = prev_req_cmd.cmd;
+    rsp[ssifchannel->sizeofLenField] = ((prevReqCmd.netfn + 1)
+                                        << ssifchannel->netFnShift) |
+                                       (prevReqCmd.lun & ssifchannel->lunMask);
+    rsp[ssifchannel->sizeofLenField + 1] = prevReqCmd.cmd;
     rsp[ssifchannel->sizeofLenField + 2] = ccResponseNotAvailable;
 
     boost::system::error_code ecWr;
@@ -203,8 +200,8 @@ void rspTimerHandler(const boost::system::error_code& ec)
             " size=" +
             std::to_string(wlen) + " expect=" + std::to_string(rsp.size()) +
             " error=" + ecWr.message() +
-            " netfn=" + std::to_string(prev_req_cmd.netfn + 1) +
-            " lun=" + std::to_string(prev_req_cmd.lun) +
+            " netfn=" + std::to_string(prevReqCmd.netfn + 1) +
+            " lun=" + std::to_string(prevReqCmd.lun) +
             " cmd=" + std::to_string(rsp[ssifchannel->sizeofLenField + 1]) +
             " cc=" + std::to_string(ccResponseNotAvailable);
         log<level::ERR>(msgToLog.c_str());
@@ -234,10 +231,10 @@ void SsifChannel::afterMethodCall(const boost::system::error_code& ec,
     }
     else
     {
-        if ((prev_req_cmd.netfn != (netfn - 1) || prev_req_cmd.lun != lun ||
-             prev_req_cmd.cmd != cmd) ||
-            ((prev_req_cmd.netfn == (netfn - 1) && prev_req_cmd.lun == lun &&
-              prev_req_cmd.cmd == cmd) &&
+        if ((prevReqCmd.netfn != (netfn - 1) || prevReqCmd.lun != lun ||
+             prevReqCmd.cmd != cmd) ||
+            ((prevReqCmd.netfn == (netfn - 1) && prevReqCmd.lun == lun &&
+              prevReqCmd.cmd == cmd) &&
              numberOfReqNotRsp != 0))
         {
             /* Only send response to the last request command to void
@@ -273,7 +270,7 @@ void SsifChannel::afterMethodCall(const boost::system::error_code& ec,
         rspIter[sizeofLenField] = (netfn << netFnShift) | (lun & lunMask);
         rspIter[sizeofLenField + 1] = cmd;
         rspIter[sizeofLenField + 2] = cc;
-        if (payload.size())
+        if (!payload.empty() != 0u)
         {
             std::copy(payload.cbegin(), payload.cend(),
                       rspIter + sizeofLenField + 3);
@@ -314,18 +311,18 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
         channelAbort("Failed to read req msg", ecRd);
         return;
     }
-    async_read();
+    asyncRead();
 
-    auto rawIter = xferBuffer.cbegin();
-    auto rawEnd = rawIter + rlen;
+    const auto* rawIter = xferBuffer.cbegin();
+    const auto* rawEnd = rawIter + rlen;
     uint8_t netfn = rawIter[sizeofLenField] >> netFnShift;
     uint8_t lun = rawIter[sizeofLenField] & lunMask;
     uint8_t cmd = rawIter[sizeofLenField + 1];
 
     /* keep track of previous request */
-    prev_req_cmd.netfn = netfn;
-    prev_req_cmd.lun = lun;
-    prev_req_cmd.cmd = cmd;
+    prevReqCmd.netfn = netfn;
+    prevReqCmd.lun = lun;
+    prevReqCmd.cmd = cmd;
 
     /* there is a request coming */
     numberOfReqNotRsp++;
@@ -335,7 +332,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
 
     if (verbose)
     {
-        unsigned int lenRecv;
+        unsigned int lenRecv = 0;
         unsigned int* p = (unsigned int*)rawIter;
         lenRecv = p[0];
         std::string msgToLog =
