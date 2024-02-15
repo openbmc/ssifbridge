@@ -19,14 +19,15 @@ add_project_arguments(
     language: 'cpp'
 )
 
-sdbusplus = dependency('sdbusplus')
-cli11 = dependency('CLI11')
-phosphor_logging = dependency('phosphor-logging')
+sdbusplus = dependency('sdbusplus', include_type: 'system')
+cli11 = dependency('CLI11', include_type: 'system')
+phosphor_logging = dependency('phosphor-logging', include_type: 'system')
 
 boost = dependency(
   'boost',
   version : '>=1.83.0',
   required : false,
+  include_type: 'system',
 )
 
 if not boost.found()
