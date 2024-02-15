@@ -66,7 +66,7 @@ class SsifChannel
 
     SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                 std::shared_ptr<sdbusplus::asio::connection>& bus,
-                const std::string& device, bool verbose, int numberOfReqNotRsp);
+                const std::string& device, bool verbose);
     bool initOK() const
     {
         return dev.is_open();
@@ -93,7 +93,7 @@ class SsifChannel
      * any value larger than 0 meaning there is/are request(s) which
      * not processed properly
      * */
-    int numberOfReqNotRsp;
+    int numberOfReqNotRsp = 0;
 
     boost::asio::steady_timer rspTimer;
 };
@@ -103,11 +103,9 @@ std::unique_ptr<SsifChannel> ssifchannel = nullptr;
 
 SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                          std::shared_ptr<sdbusplus::asio::connection>& bus,
-                         const std::string& device, bool verbose,
-                         int numberOfReqNotRsp) :
+                         const std::string& device, bool verbose) :
     dev(*io),
-    io(io), bus(bus), verbose(verbose), numberOfReqNotRsp(numberOfReqNotRsp),
-    rspTimer(*io)
+    io(io), bus(bus), verbose(verbose), rspTimer(*io)
 {
     std::string devName(devBase);
     if (!device.empty())
@@ -373,7 +371,6 @@ int main(int argc, char* argv[])
     app.add_option("-d,--device", device,
                    "use <DEVICE> file. Default is /dev/ipmi-ssif-host");
     bool verbose = false;
-    int numberOfReqNotRsp = 0;
     app.add_option("-v,--verbose", verbose, "print more verbose output");
     CLI11_PARSE(app, argc, argv);
 
@@ -382,8 +379,7 @@ int main(int argc, char* argv[])
     auto bus = std::make_shared<sdbusplus::asio::connection>(*io);
     bus->request_name("xyz.openbmc_project.Ipmi.Channel.ipmi_ssif");
     // Create the SSIF channel, listening on D-Bus and on the SSIF device
-    ssifchannel = make_unique<SsifChannel>(io, bus, device, verbose,
-                                           numberOfReqNotRsp);
+    ssifchannel = make_unique<SsifChannel>(io, bus, device, verbose);
     if (!ssifchannel->initOK())
     {
         return EXIT_FAILURE;
