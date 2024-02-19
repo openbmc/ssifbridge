@@ -46,6 +46,30 @@
       },
       "revId": "41c9b2b8ee82699ee0b217f8dd4399d6310d3bd2",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ac64e7c2_f01ba681",
+        "filename": "ssifbridged.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 93,
+      "author": {
+        "id": 1001612
+      },
+      "writtenOn": "2024-02-19T08:52:51Z",
+      "side": 0,
+      "message": "@EdTanous, yes, this is the workaround which mentioned below in main() since at the time I added that code, I did not have any better solution. The timer `rspTimer` just makes sure that there is a response to host within `hostReqTimeout`; therefore any timer type will work.\n\nDid you test this patch on your system? If it works, I am ok with this patch.\n\nBy the way, you are using this ssifbridge in your system? which ssif driver you are using?",
+      "parentUuid": "ed05e1cb_0feb7e33",
+      "range": {
+        "startLine": 93,
+        "startChar": 43,
+        "endLine": 93,
+        "endChar": 79
+      },
+      "revId": "41c9b2b8ee82699ee0b217f8dd4399d6310d3bd2",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
