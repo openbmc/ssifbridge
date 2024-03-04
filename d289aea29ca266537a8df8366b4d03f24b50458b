@@ -16,6 +16,23 @@
       "message": "Hi Quang,\nAny update?",
       "revId": "d289aea29ca266537a8df8366b4d03f24b50458b",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "eed24a6c_49fd2726",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2024-03-04T07:24:37Z",
+      "side": 1,
+      "message": "Verified on Mt.Jade and Mt.Mitchell with below tests:\n- 12 hour in-band IPMI stress test.\n- 12 hour in-band IPMI stress test with BMC reboots during the stress test.\n- 12 hour A/C power test with in-band commands",
+      "revId": "d289aea29ca266537a8df8366b4d03f24b50458b",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
