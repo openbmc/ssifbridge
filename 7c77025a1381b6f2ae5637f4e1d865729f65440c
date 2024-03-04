@@ -16,6 +16,23 @@
       "message": "Hi Ed,\nCan you give more information about the lang-13 + libstdc++ + std::tuple packs issue that need to revert to c++20?",
       "revId": "7c77025a1381b6f2ae5637f4e1d865729f65440c",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "bce3c799_74c60fff",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 5
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1001612
+      },
+      "writtenOn": "2024-03-04T08:03:03Z",
+      "side": 1,
+      "message": "I do not know if openBMC will need all sub-projects support C++23 in the future, I don\u0027t recommend roll back to C++20.",
+      "revId": "7c77025a1381b6f2ae5637f4e1d865729f65440c",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
