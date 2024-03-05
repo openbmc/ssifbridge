@@ -16,6 +16,24 @@
       "message": "Just a question to clarify, do we need to update directory and source_url every time OpenBMC subtree update which change boost version?",
       "revId": "4f143285cb6d4ef5bba5a6695c3a5d39b3074e09",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "b1d223b2_597236da",
+        "filename": "subprojects/boost.wrap",
+        "patchSetId": 5
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 1000153
+      },
+      "writtenOn": "2024-03-05T19:32:57Z",
+      "side": 1,
+      "message": "Ideally yes, but it\u0027s only really required if you use boost components that only exist in the new version.",
+      "parentUuid": "8b9c20e2_a3c7bf1c",
+      "revId": "4f143285cb6d4ef5bba5a6695c3a5d39b3074e09",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
