@@ -33,11 +33,12 @@ if not boost.found()
   cmake = import('cmake')
   opt = cmake.subproject_options()
   opt.add_cmake_defines({
-    'BOOST_INCLUDE_LIBRARIES': 'asio'
+    'BOOST_INCLUDE_LIBRARIES': 'asio;callable_traits'
   })
   boost_cmake = cmake.subproject('boost', required: true, options: opt)
   boost_asio = boost_cmake.dependency('boost_asio').as_system()
-  boost = [boost_asio]
+  boost_callable_traits = boost_cmake.dependency('boost_callable_traits').as_system()
+  boost = [boost_asio, boost_callable_traits]
 endif
 
 # Configure and install systemd unit files
