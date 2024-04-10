@@ -16,6 +16,24 @@
       "message": "As I know from discussion in Discord, this can be fixed by using boost 1.84. Should we upgrade boost instead?\n\nAlso, can you give me more information about b_lto?",
       "revId": "0940a7cb0f7dbb6b07422dee940c0bf391d0ec27",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "71683bac_0f8b8e76",
+        "filename": "meson.build",
+        "patchSetId": 1
+      },
+      "lineNbr": 8,
+      "author": {
+        "id": 1000926
+      },
+      "writtenOn": "2024-04-10T08:24:44Z",
+      "side": 1,
+      "message": "No, I\u0027ve tried it and that is not the case, without the `b_lto` build process fails even with the boost 1.84. I\u0027ve said that in the same discord discussion https://discord.com/channels/775381525260664832/867820390406422538/1225113520694104235\n\n(just in case, `bmcweb` has this flag)\n\nI guess the `b_lto` adds `-flto` option to the GCC: https://gcc.gnu.org/wiki/LinkTimeOptimization",
+      "parentUuid": "ee9f47bf_0023da19",
+      "revId": "0940a7cb0f7dbb6b07422dee940c0bf391d0ec27",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
