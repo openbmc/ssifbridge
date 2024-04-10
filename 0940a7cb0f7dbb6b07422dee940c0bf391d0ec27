@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ee9f47bf_0023da19",
+        "filename": "meson.build",
+        "patchSetId": 1
+      },
+      "lineNbr": 8,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2024-04-10T01:49:23Z",
+      "side": 1,
+      "message": "As I know from discussion in Discord, this can be fixed by using boost 1.84. Should we upgrade boost instead?\n\nAlso, can you give me more information about b_lto?",
+      "revId": "0940a7cb0f7dbb6b07422dee940c0bf391d0ec27",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    }
+  ]
+}
