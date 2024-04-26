@@ -106,6 +106,24 @@
       "parentUuid": "b5d45168_b983ef29",
       "revId": "cfd8edcbede9b1bd25b0131e5bb1b1435d8c6e41",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3fb31cbc_a7e54a50",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 8
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2024-04-26T04:57:10Z",
+      "side": 1,
+      "message": "I run more test:\n1. Flash BMC firmware without this patch. Then reboot the Host to Linux OS. Check if /dev/ipmi0 exists and some in-band IPMI commands can execute successfully.\n2. Flash BMC firmware with this patch.\n3. Run some in-band IPMI commands from Host OS (don\u0027t reboot the Host before):\n\n```\n[root@localhost ~]# ipmitool sensor list\nWARNING: Unknown SDR repository version 0x00\nSDRR successfully erased\nLoad SDRs from 0x20\nSDR record id 0x0000: invalid length 0\nSDR record id 0x0000: invalid length 0\n[root@localhost ~]# ipmitool fru print\nFRU Device Description : Builtin FRU Device (ID 0)\nWARNING: Unknown SDR repository version 0x00\nSDRR successfully erased\nLoad SDRs from 0x20\nSDR record id 0x0000: invalid length 0\nSDR record id 0x0000: invalid length 0\n```",
+      "parentUuid": "2eef329d_7a8033cb",
+      "revId": "cfd8edcbede9b1bd25b0131e5bb1b1435d8c6e41",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
