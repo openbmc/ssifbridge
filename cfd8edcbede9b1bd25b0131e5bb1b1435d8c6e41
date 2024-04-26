@@ -88,6 +88,24 @@
       "parentUuid": "a8df7809_433e2a9a",
       "revId": "cfd8edcbede9b1bd25b0131e5bb1b1435d8c6e41",
       "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "2eef329d_7a8033cb",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 8
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000940
+      },
+      "writtenOn": "2024-04-26T02:00:28Z",
+      "side": 1,
+      "message": "unfortunately, this change makes IPMI Get SI Capabilities and Clear Message Flags Commands fail so /dev/ipmi0 is fail to be created.",
+      "parentUuid": "b5d45168_b983ef29",
+      "revId": "cfd8edcbede9b1bd25b0131e5bb1b1435d8c6e41",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
     }
   ]
 }
