@@ -104,8 +104,7 @@ std::unique_ptr<SsifChannel> ssifchannel = nullptr;
 SsifChannel::SsifChannel(std::shared_ptr<boost::asio::io_context>& io,
                          std::shared_ptr<sdbusplus::asio::connection>& bus,
                          const std::string& device, bool verbose) :
-    dev(*io),
-    io(io), bus(bus), verbose(verbose), rspTimer(*io)
+    dev(*io), io(io), bus(bus), verbose(verbose), rspTimer(*io)
 {
     std::string devName(devBase);
     if (!device.empty())
