@@ -89,7 +89,7 @@ class SsifChannel
     std::shared_ptr<sdbusplus::asio::connection> bus;
     std::shared_ptr<sdbusplus::asio::object_server> server;
     bool verbose;
-    /* This variable is always 0 when a request is responsed properly,
+    /* This variable is always 0 when a request is responded properly,
      * any value larger than 0 meaning there is/are request(s) which
      * not processed properly
      * */
@@ -241,7 +241,7 @@ void SsifChannel::afterMethodCall(const boost::system::error_code& ec,
          *
          * Drop responses which are (1) different from the request
          * (2) parameters are the same as request but handshake flow
-         * are in dupplicate request state
+         * are in duplicated request state
          * */
         if (verbose)
         {
