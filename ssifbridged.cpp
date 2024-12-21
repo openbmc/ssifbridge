@@ -184,8 +184,8 @@ void rspTimerHandler(const boost::system::error_code& ec)
     unsigned int* t = reinterpret_cast<unsigned int*>(rsp.data());
     *t = 3;
     rsp[ssifchannel->sizeofLenField] =
-        ((prevReqCmd.netfn + 1) << ssifchannel->netFnShift) |
-        (prevReqCmd.lun & ssifchannel->lunMask);
+        ((prevReqCmd.netfn + 1) << SsifChannel::netFnShift) |
+        (prevReqCmd.lun & SsifChannel::lunMask);
     rsp[ssifchannel->sizeofLenField + 1] = prevReqCmd.cmd;
     rsp[ssifchannel->sizeofLenField + 2] = ccResponseNotAvailable;
 
