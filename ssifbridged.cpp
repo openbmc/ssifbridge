@@ -32,10 +32,30 @@
 #include <sdbusplus/asio/object_server.hpp>
 #include <sdbusplus/timer.hpp>
 
+#include <cstring>
 #include <iostream>
 
 /* Max length of ipmi ssif message included netfn and cmd field */
 constexpr const size_t ipmiSsifPayloadMax = 254;
+
+/* IPMI App NetFn 0x06, Cmd 0x57 - Get System Interface Capabilities. */
+constexpr uint8_t ipmiNetFnApp       = 0x06;
+constexpr uint8_t ipmiCmdGetSysIfCap = 0x57;
+constexpr uint8_t ipmiSsifIfType     = 0x00;
+constexpr uint8_t ipmiSsifCapFlags   = 0x80;
+constexpr uint8_t ipmiSsifMaxXmitMsgSize = 0xFF;
+constexpr uint8_t ipmiSsifMaxRecvMsgSize = 0xFF;
+/* netfn/lun byte + cmd byte */
+constexpr size_t ipmiHdrSize = 2;
+/* completion code byte */
+constexpr size_t ipmiCcSize = 1;
+/* reserved byte in Get System Interface Capabilities response */
+constexpr uint8_t ipmiSsifRsvd = 0x00;
+/* payloadLen: ifType + capFlags + maxXmit + maxRecv + reserved */
+constexpr size_t ipmiSsifCapPayloadLen = 5;
+/* total IPMI length field: hdr + cc + payload */
+constexpr uint32_t ipmiSsifCapLenField =
+    ipmiHdrSize + ipmiCcSize + ipmiSsifCapPayloadLen;
 
 using phosphor::logging::level;
 using phosphor::logging::log;
@@ -84,6 +104,8 @@ class SsifChannel
     IpmiCmd prevReqCmd{};
 
   protected:
+    bool handleGetSysIfCap(uint8_t netfn, uint8_t cmd,
+                           const std::vector<uint8_t>& data);
     std::array<uint8_t, ssifMessageSize> xferBuffer{};
     std::shared_ptr<boost::asio::io_context> io;
     std::shared_ptr<sdbusplus::asio::connection> bus;
@@ -152,6 +174,38 @@ void SsifChannel::asyncRead()
         [this](const boost::system::error_code& ec, size_t rlen) {
             processMessage(ec, rlen);
         });
+}
+
+bool SsifChannel::handleGetSysIfCap(uint8_t netfn, uint8_t cmd,
+                                    const std::vector<uint8_t>& data)
+{
+    if (netfn != ipmiNetFnApp || cmd != ipmiCmdGetSysIfCap)
+        return false;
+    if (data.empty() || data[0] != ipmiSsifIfType)
+        return false;
+
+    std::vector<uint8_t> rsp(sizeof(ipmiSsifCapLenField) + ipmiHdrSize + ipmiCcSize +
+                             ipmiSsifCapPayloadLen);
+    std::memcpy(rsp.data(), &ipmiSsifCapLenField, sizeof(ipmiSsifCapLenField));
+    size_t idx = sizeof(ipmiSsifCapLenField);
+    rsp[idx++] = static_cast<uint8_t>(((ipmiNetFnApp + 1) << netFnShift) |
+                                      (prevReqCmd.lun & lunMask));
+    rsp[idx++] = ipmiCmdGetSysIfCap;
+    rsp[idx++] = ipmiSsifRsvd;
+    rsp[idx++] = ipmiSsifRsvd;
+    rsp[idx++] = ipmiSsifCapFlags;
+    rsp[idx++] = ipmiSsifMaxXmitMsgSize;
+    rsp[idx++] = ipmiSsifMaxRecvMsgSize;
+
+    numberOfReqNotRsp--;
+    rspTimer.cancel();
+    boost::system::error_code ecWr;
+    size_t wlen = boost::asio::write(dev, boost::asio::buffer(rsp), ecWr);
+    if (ecWr || wlen != rsp.size())
+    {
+        log<level::ERR>("handleGetSysIfCap: failed to send response");
+    }
+    return true;
 }
 
 int SsifChannel::showNumOfReqNotRsp() const
@@ -346,6 +400,10 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
     std::vector<uint8_t> data(rawIter + sizeofLenField + 2, rawEnd);
     // non-session bridges still need to pass an empty options map
     std::map<std::string, std::variant<int>> options;
+    if (handleGetSysIfCap(netfn, cmd, data))
+    {
+        return;
+    }
     static constexpr const char* ipmiQueueService =
         "xyz.openbmc_project.Ipmi.Host";
     static constexpr const char* ipmiQueuePath = "/xyz/openbmc_project/Ipmi";
