@@ -17,11 +17,9 @@
  * the D-Bus IPMI Interface.
  */
 
-#include <getopt.h>
 #include <linux/ipmi_bmc.h>
 
 #include <CLI/CLI.hpp>
-#include <boost/algorithm/string/replace.hpp>
 #include <boost/asio/completion_condition.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/read.hpp>
@@ -30,10 +28,8 @@
 #include <phosphor-logging/log.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
-#include <sdbusplus/timer.hpp>
 
 #include <cstring>
-#include <iostream>
 
 /* Max length of ipmi ssif message included netfn and cmd field */
 constexpr const size_t ipmiSsifPayloadMax = 254;
