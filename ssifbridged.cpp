@@ -102,6 +102,11 @@ class SsifChannel
     int showNumOfReqNotRsp() const;
     boost::asio::posix::stream_descriptor dev;
     IpmiCmd prevReqCmd{};
+    /* Set when a timeout response has already been sent for the current
+     * request; cleared on each new incoming request.  Ensures any late
+     * D-Bus response is dropped so the host never receives two responses
+     * for one request. */
+    bool timedOut = false;
 
   protected:
     bool handleGetSysIfCap(uint8_t netfn, uint8_t cmd,
@@ -247,6 +252,8 @@ void rspTimerHandler(const boost::system::error_code& ec)
     rsp[ssifchannel->sizeofLenField + 1] = prevReqCmd.cmd;
     rsp[ssifchannel->sizeofLenField + 2] = ccResponseNotAvailable;
 
+    ssifchannel->timedOut = true;
+
     boost::system::error_code ecWr;
 
     size_t wlen =
@@ -288,7 +295,8 @@ void SsifChannel::afterMethodCall(const boost::system::error_code& ec,
         return;
     }
 
-    if ((prevReqCmd.netfn != (netfn - 1) || prevReqCmd.lun != lun ||
+    if (timedOut ||
+        (prevReqCmd.netfn != (netfn - 1) || prevReqCmd.lun != lun ||
          prevReqCmd.cmd != cmd) ||
         ((prevReqCmd.netfn == (netfn - 1) && prevReqCmd.lun == lun &&
           prevReqCmd.cmd == cmd) &&
@@ -382,6 +390,7 @@ void SsifChannel::processMessage(const boost::system::error_code& ecRd,
 
     /* there is a request coming */
     numberOfReqNotRsp++;
+    timedOut = false;
     /* start response timer */
     rspTimer.expires_after(std::chrono::microseconds(hostReqTimeout));
     rspTimer.async_wait(rspTimerHandler);
